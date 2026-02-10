@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEX History Dashboard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#08080d;--panel:#0e0e16;--card:#12121c;--border:#1a1a2a;
+  --text:#b8b8cc;--dim:#555570;--bright:#e8e8f4;--white:#fff;
+  --yellow:#fbbf24;--yellow-dim:#92711a;--purple:#a855f7;--purple-dim:#6d35a8;
+  --green:#22c55e;--green-dim:#15803d;--king:#f59e0b;
+  --accent:#6366f1;--red:#ef4444;--cyan:#06b6d4;
+}
+body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;min-height:100vh}
+
+/* Header */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--border);background:var(--panel)}
+.hdr h1{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:var(--bright);letter-spacing:-.5px}
+.hdr h1 em{font-style:normal;color:var(--accent);font-weight:700}
+.hdr-r{display:flex;gap:10px;align-items:center}
+.hdr-r a{font-size:11px;color:var(--accent);text-decoration:none;padding:5px 12px;border:1px solid var(--border);border-radius:5px;transition:all .15s}
+.hdr-r a:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* Controls */
+.ctrl{display:flex;gap:10px;padding:10px 28px;border-bottom:1px solid var(--border);background:var(--panel);flex-wrap:wrap;align-items:center}
+button,select{font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--card);color:var(--text);border:1px solid var(--border);padding:6px 12px;border-radius:5px;cursor:pointer;transition:all .15s}
+button:hover{background:var(--border);color:var(--bright);border-color:var(--accent)}
+select:focus{border-color:var(--accent);outline:none}
+.ctrl label{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px}
+.ctrl-g{display:flex;align-items:center;gap:6px}
+
+/* Tabs */
+.tabs{display:flex;gap:0;padding:0 28px;background:var(--panel);border-bottom:1px solid var(--border)}
+.tab{font-size:11px;padding:12px 20px;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;letter-spacing:.3px}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* Sections */
+.sec{display:none;padding:20px 28px}
+.sec.on{display:block}
+
+/* ═══ TREND SECTION ═══ */
+.trend-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:1000px){.trend-grid{grid-template-columns:1fr}}
+
+.trend-card{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;transition:border-color .2s}
+.trend-card:hover{border-color:#2a2a44}
+.trend-card-hdr{padding:14px 18px 8px;display:flex;justify-content:space-between;align-items:center}
+.trend-sym{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:var(--bright)}
+.trend-spot{font-size:16px;font-weight:600;color:var(--bright)}
+.trend-meta{padding:0 18px 10px;display:flex;gap:8px;flex-wrap:wrap}
+.trend-tag{font-size:9px;padding:3px 8px;border-radius:4px;font-weight:600;letter-spacing:.3px}
+.trend-tag.pos{background:rgba(251,191,36,.12);color:var(--yellow);border:1px solid rgba(251,191,36,.25)}
+.trend-tag.neg{background:rgba(168,85,247,.12);color:var(--purple);border:1px solid rgba(168,85,247,.25)}
+.trend-tag.neu{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.25)}
+.trend-tag.king-t{background:rgba(245,158,11,.12);color:var(--king);border:1px solid rgba(245,158,11,.25)}
+
+.chart-wrap{padding:4px 12px 8px;position:relative}
+.chart-wrap svg{width:100%;display:block}
+
+.trend-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-top:1px solid var(--border)}
+.trend-stat{background:var(--card);padding:10px 14px;text-align:center}
+.trend-stat-label{font-size:8px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.trend-stat-val{font-size:13px;font-weight:600;color:var(--bright)}
+.trend-stat-delta{font-size:9px;margin-top:2px}
+.trend-stat-delta.up{color:var(--yellow)}
+.trend-stat-delta.dn{color:var(--purple)}
+.trend-stat-delta.flat{color:var(--dim)}
+
+/* Profile timeline */
+.profile-row{display:flex;gap:2px;padding:6px 18px 12px}
+.profile-cell{flex:1;height:24px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:600;letter-spacing:.5px;position:relative}
+.profile-cell.positive{background:rgba(251,191,36,.2);color:var(--yellow)}
+.profile-cell.negative{background:rgba(168,85,247,.2);color:var(--purple)}
+.profile-cell.neutral{background:rgba(34,197,94,.2);color:var(--green)}
+.profile-cell.unknown{background:rgba(255,255,255,.05);color:var(--dim)}
+.profile-cell .pdate{position:absolute;bottom:-12px;font-size:7px;color:var(--dim);font-weight:400}
+
+/* ═══ ALERTS ═══ */
+.alerts-wrap{max-width:820px;display:flex;flex-direction:column;gap:10px}
+.alert{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 18px;position:relative;overflow:hidden}
+.alert::before{content:'';position:absolute;top:0;left:0;bottom:0;width:4px;border-radius:4px 0 0 4px}
+.alert.fl-neg::before{background:var(--purple)}
+.alert.fl-pos::before{background:var(--yellow)}
+.alert.fl-neu::before{background:var(--green)}
+.alert.king-mv::before{background:var(--king)}
+.alert-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.alert-sym{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;color:var(--bright)}
+.alert-date{font-size:10px;color:var(--dim)}
+.alert-body{font-size:12px;color:var(--text);line-height:1.7}
+.alert-body strong{color:var(--bright)}
+.no-data{text-align:center;padding:80px 0;color:var(--dim);font-size:13px;line-height:2}
+
+/* ═══ COMPARE ═══ */
+.cmp-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:1100px}
+@media(max-width:800px){.cmp-grid{grid-template-columns:1fr}}
+.cmp-card{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.cmp-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.cmp-sym{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;color:var(--bright)}
+.cmp-dates{font-size:9px;color:var(--dim)}
+.cmp-body{padding:6px 0}
+.cmp-row{display:flex;justify-content:space-between;align-items:center;padding:7px 16px;border-bottom:1px solid rgba(255,255,255,.02)}
+.cmp-row:last-child{border-bottom:none}
+.cmp-lbl{font-size:11px;color:var(--dim)}
+.cmp-vals{display:flex;align-items:center;gap:8px;font-size:11px}
+.cmp-prev{color:var(--dim)}
+.cmp-arrow{font-size:10px;color:var(--dim)}
+.cmp-curr{color:var(--bright);font-weight:600}
+.cmp-delta{font-size:9px;padding:2px 6px;border-radius:3px;font-weight:600}
+.cmp-delta.up{background:rgba(251,191,36,.1);color:var(--yellow)}
+.cmp-delta.dn{background:rgba(168,85,247,.1);color:var(--purple)}
+.cmp-delta.flat{background:rgba(255,255,255,.05);color:var(--dim)}
+.cmp-profile{display:inline-block;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:600}
+.cmp-profile.positive{background:rgba(251,191,36,.15);color:var(--yellow)}
+.cmp-profile.negative{background:rgba(168,85,247,.15);color:var(--purple)}
+.cmp-profile.neutral{background:rgba(34,197,94,.15);color:var(--green)}
+
+/* ═══ SNAPSHOTS ═══ */
+.snap-list{display:flex;flex-direction:column;gap:6px;max-width:950px}
+.snap{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 16px;display:flex;align-items:center;gap:14px;transition:border-color .15s}
+.snap:hover{border-color:var(--accent)}
+.snap-date{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:var(--bright);width:100px;flex-shrink:0}
+.snap-syms{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.snap-chip{font-size:9px;padding:3px 8px;border-radius:4px;font-weight:500}
+.snap-chip.positive{background:rgba(251,191,36,.1);color:var(--yellow);border:1px solid rgba(251,191,36,.2)}
+.snap-chip.negative{background:rgba(168,85,247,.1);color:var(--purple);border:1px solid rgba(168,85,247,.2)}
+.snap-chip.neutral{background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1><em>GEX</em> History Dashboard</h1>
+  <div class="hdr-r"><a href="gex_heatmap.html">← Live Heatmap</a></div>
+</div>
+
+<div class="ctrl">
+  <div class="ctrl-g"><button onclick="document.getElementById('fi').click()">📂 Load index.json</button><input type="file" id="fi" accept=".json" style="display:none" onchange="loadFile(event)"></div>
+  <div class="ctrl-g"><button onclick="loadSample()">🧪 Sample (8 days)</button></div>
+  <div class="ctrl-g" style="margin-left:auto"><label>Filter:</label>
+    <select id="symSel" onchange="render()"><option value="ALL">All Symbols</option></select>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab on" data-t="trends">📈 Weekly Trends</div>
+  <div class="tab" data-t="alerts">🚨 Gamma Flips</div>
+  <div class="tab" data-t="compare">⚖️ Today vs Yesterday</div>
+  <div class="tab" data-t="snaps">📁 Snapshots</div>
+</div>
+
+<div class="sec on" id="s-trends"></div>
+<div class="sec" id="s-alerts"></div>
+<div class="sec" id="s-compare"></div>
+<div class="sec" id="s-snaps"></div>
+
+<script>
+let IX = null;
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.sec').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on');
+  document.getElementById('s-'+t.dataset.t).classList.add('on');
+});
+
+function fp(p){return p>=1000?p.toFixed(0):p.toFixed(2)}
+function fg(v){const a=Math.abs(v);if(a>=1e9)return(v/1e9).toFixed(1)+'B';if(a>=1e6)return(v/1e6).toFixed(1)+'M';if(a>=1e3)return(v/1e3).toFixed(1)+'K';return v.toFixed(0)}
+function deltaClass(d){return d>0?'up':d<0?'dn':'flat'}
+function deltaStr(d,fmt){const s=d>0?'↑ +':'↓ ';return d===0?'→ 0':s+(fmt==='p'?Math.abs(d).toFixed(1):fg(Math.abs(d)))}
+
+function loadFile(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{IX=JSON.parse(ev.target.result);popSyms();render()}catch(err){alert('Bad JSON')}};r.readAsText(f)}
+
+function popSyms(){
+  const sel=document.getElementById('symSel'),syms=new Set();
+  Object.values(IX||{}).forEach(d=>Object.keys(d).forEach(s=>syms.add(s)));
+  sel.innerHTML='<option value="ALL">All Symbols</option>';
+  [...syms].sort().forEach(s=>{sel.innerHTML+=`<option value="${s}">${s}</option>`});
+}
+function getSyms(){
+  const v=document.getElementById('symSel').value,syms=new Set();
+  Object.values(IX||{}).forEach(d=>Object.keys(d).forEach(s=>syms.add(s)));
+  return v==='ALL'?[...syms].sort():[v];
+}
+
+function render(){if(!IX)return;renderTrends();renderAlerts();renderCompare();renderSnaps()}
+
+// ═══════════════════════════════════
+// SVG CHART BUILDER — crisp at any DPI
+// ═══════════════════════════════════
+function svgChart(dates, series, opts={}){
+  const W=opts.w||520, H=opts.h||160;
+  const pad={t:24,r:16,b:28,l:56};
+  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+
+  let allV=[];
+  series.forEach(s=>s.data.forEach(v=>{if(v!==null&&v!==undefined)allV.push(v)}));
+  if(!allV.length)return'<svg></svg>';
+  let minV=Math.min(...allV), maxV=Math.max(...allV);
+  const margin=(maxV-minV)*0.08||1;
+  minV-=margin; maxV+=margin;
+  const range=maxV-minV||1;
+
+  const x=i=>pad.l+(cw/(Math.max(dates.length-1,1)))*i;
+  const y=v=>pad.t+ch-((v-minV)/range)*ch;
+
+  let svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">`;
+
+  // Grid lines
+  for(let i=0;i<=4;i++){
+    const yy=pad.t+(ch/4)*i;
+    const val=maxV-(range/4)*i;
+    svg+=`<line x1="${pad.l}" y1="${yy}" x2="${W-pad.r}" y2="${yy}" stroke="#1a1a2a" stroke-width="0.5"/>`;
+    svg+=`<text x="${pad.l-8}" y="${yy+4}" fill="#555570" font-size="9" font-family="JetBrains Mono" text-anchor="end">${fp(val)}</text>`;
+  }
+
+  // Date labels
+  dates.forEach((d,i)=>{
+    svg+=`<text x="${x(i)}" y="${H-4}" fill="#555570" font-size="8" font-family="JetBrains Mono" text-anchor="middle">${d.slice(5)}</text>`;
+    svg+=`<line x1="${x(i)}" y1="${pad.t}" x2="${x(i)}" y2="${H-pad.b}" stroke="#1a1a2a" stroke-width="0.3"/>`;
+  });
+
+  // Zero line if data crosses zero
+  if(minV<0 && maxV>0){
+    const zy=y(0);
+    svg+=`<line x1="${pad.l}" y1="${zy}" x2="${W-pad.r}" y2="${zy}" stroke="#333" stroke-width="1" stroke-dasharray="4,3"/>`;
+    svg+=`<text x="${pad.l-8}" y="${zy+3}" fill="#666" font-size="8" font-family="JetBrains Mono" text-anchor="end">0</text>`;
+  }
+
+  // Series
+  series.forEach(s=>{
+    const pts=[];
+    dates.forEach((d,i)=>{
+      const v=s.data[i];
+      if(v!==null&&v!==undefined) pts.push({x:x(i),y:y(v),i});
+    });
+    if(pts.length<1)return;
+
+    if(s.type==='bar'){
+      const bw=Math.min(16,cw/dates.length*.6);
+      pts.forEach(p=>{
+        const v=s.data[p.i];
+        const zy=y(0);
+        const barY=v>=0?p.y:zy;
+        const barH=Math.abs(p.y-zy);
+        const fill=v>=0?(s.colorPos||'#fbbf2488'):(s.colorNeg||'#a855f788');
+        svg+=`<rect x="${p.x-bw/2}" y="${barY}" width="${bw}" height="${Math.max(barH,1)}" fill="${fill}" rx="2"/>`;
+      });
+    } else {
+      // Area fill
+      if(s.fill && pts.length>=2){
+        const baseline=y(minV);
+        let areaPath=`M${pts[0].x},${pts[0].y}`;
+        pts.slice(1).forEach(p=>{areaPath+=` L${p.x},${p.y}`});
+        areaPath+=` L${pts[pts.length-1].x},${baseline} L${pts[0].x},${baseline} Z`;
+        svg+=`<path d="${areaPath}" fill="${s.fill}" opacity="0.15"/>`;
+      }
+      // Line
+      if(pts.length>=2){
+        let path=`M${pts[0].x},${pts[0].y}`;
+        pts.slice(1).forEach(p=>{path+=` L${p.x},${p.y}`});
+        svg+=`<path d="${path}" fill="none" stroke="${s.color}" stroke-width="${s.width||2}" ${s.dash?`stroke-dasharray="${s.dash}"`:''}/>`;
+      }
+      // Dots + value labels
+      pts.forEach((p,pi)=>{
+        svg+=`<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${s.color}" stroke="${s.color}" stroke-width="1"/>`;
+        svg+=`<circle cx="${p.x}" cy="${p.y}" r="2" fill="#12121c"/>`;
+        // Show value on last point
+        if(pi===pts.length-1){
+          svg+=`<text x="${p.x+8}" y="${p.y+3}" fill="${s.color}" font-size="9" font-family="JetBrains Mono" font-weight="600">${fp(s.data[p.i])}</text>`;
+        }
+      });
+    }
+
+    // Legend label
+    if(s.label){
+      const last=pts[pts.length-1];
+      if(last && !s.type){
+        // Already showing value
+      }
+    }
+  });
+
+  svg+=`</svg>`;
+  return svg;
+}
+
+// ═══════════════════════════════════
+// TRENDS — one card per symbol
+// ═══════════════════════════════════
+function renderTrends(){
+  const el=document.getElementById('s-trends');
+  if(!IX){el.innerHTML='<div class="no-data">Load gex_history/index.json to view trends.</div>';return}
+  const dates=Object.keys(IX).sort();
+  const syms=getSyms();
+
+  let html='<div class="trend-grid">';
+  syms.forEach(sym=>{
+    const vals=dates.map(d=>IX[d]?.[sym]).filter(Boolean);
+    if(!vals.length)return;
+    const latest=vals[vals.length-1];
+    const prev=vals.length>=2?vals[vals.length-2]:null;
+
+    // Profile tag
+    const pCls=latest.profile==='positive'?'pos':latest.profile==='negative'?'neg':'neu';
+    const pLabel=latest.profile==='positive'?'+GAMMA':latest.profile==='negative'?'−GAMMA':'NEUTRAL';
+
+    // Deltas
+    const spotD=prev?latest.spot-prev.spot:0;
+    const kingD=prev?latest.king_node-prev.king_node:0;
+    const gwD=prev?latest.gamma_wall-prev.gamma_wall:0;
+    const pwD=prev?latest.put_wall-prev.put_wall:0;
+
+    // Chart data arrays
+    const kingData=dates.map(d=>IX[d]?.[sym]?.king_node??null);
+    const gwData=dates.map(d=>IX[d]?.[sym]?.gamma_wall??null);
+    const pwData=dates.map(d=>IX[d]?.[sym]?.put_wall??null);
+    const spotData=dates.map(d=>IX[d]?.[sym]?.spot??null);
+    const gexData=dates.map(d=>IX[d]?.[sym]?.total_net_gex??null);
+
+    // Price chart (king + gamma wall + put wall + spot)
+    const priceChart=svgChart(dates,[
+      {data:gwData,color:'#fbbf24',width:1.5,fill:'#fbbf24',label:'Γ Wall'},
+      {data:pwData,color:'#a855f7',width:1.5,fill:'#a855f7',dash:'4,3',label:'Put Wall'},
+      {data:spotData,color:'#ffffff66',width:1,dash:'2,2',label:'Spot'},
+      {data:kingData,color:'#f59e0b',width:2.5,fill:'#f59e0b',label:'King'},
+    ],{h:170});
+
+    // Net GEX bar chart
+    const gexChart=svgChart(dates,[
+      {data:gexData,type:'bar',colorPos:'#fbbf24aa',colorNeg:'#a855f7aa'},
+    ],{h:90});
+
+    // Profile timeline
+    let profileHtml='<div class="profile-row">';
+    dates.forEach((d,i)=>{
+      const p=IX[d]?.[sym]?.profile||'unknown';
+      const label=p==='positive'?'+':p==='negative'?'−':'○';
+      profileHtml+=`<div class="profile-cell ${p}">${label}${i===0||i===dates.length-1?`<span class="pdate">${d.slice(5)}</span>`:''}</div>`;
+    });
+    profileHtml+='</div>';
+
+    html+=`
+    <div class="trend-card">
+      <div class="trend-card-hdr">
+        <span class="trend-sym">${sym}</span>
+        <span class="trend-spot">$${fp(latest.spot)}</span>
+      </div>
+      <div class="trend-meta">
+        <span class="trend-tag ${pCls}">${pLabel}</span>
+        <span class="trend-tag king-t">★ King: ${fp(latest.king_node)}</span>
+        <span class="trend-tag ${pCls}">Bias: ${latest.bias?.toUpperCase()||'?'}</span>
+      </div>
+      <div class="chart-wrap">${priceChart}</div>
+      <div style="padding:2px 18px 0"><span style="font-size:8px;color:var(--dim)">
+        <span style="color:#f59e0b">━</span> King &nbsp;
+        <span style="color:#fbbf24">━</span> Γ Wall &nbsp;
+        <span style="color:#a855f7">╌</span> Put Wall &nbsp;
+        <span style="color:#ffffff66">╌</span> Spot
+      </span></div>
+      <div style="padding:4px 18px 0;font-size:9px;color:var(--dim)">Net GEX</div>
+      <div class="chart-wrap">${gexChart}</div>
+      <div style="padding:0 18px;font-size:9px;color:var(--dim);margin-bottom:2px">Gamma Profile</div>
+      ${profileHtml}
+      <div class="trend-stats">
+        <div class="trend-stat">
+          <div class="trend-stat-label">King Node</div>
+          <div class="trend-stat-val">${fp(latest.king_node)}</div>
+          <div class="trend-stat-delta ${deltaClass(kingD)}">${deltaStr(kingD,'p')}</div>
+        </div>
+        <div class="trend-stat">
+          <div class="trend-stat-label">Γ Wall</div>
+          <div class="trend-stat-val">${fp(latest.gamma_wall)}</div>
+          <div class="trend-stat-delta ${deltaClass(gwD)}">${deltaStr(gwD,'p')}</div>
+        </div>
+        <div class="trend-stat">
+          <div class="trend-stat-label">Put Wall</div>
+          <div class="trend-stat-val">${fp(latest.put_wall)}</div>
+          <div class="trend-stat-delta ${deltaClass(pwD)}">${deltaStr(pwD,'p')}</div>
+        </div>
+        <div class="trend-stat">
+          <div class="trend-stat-label">Net GEX</div>
+          <div class="trend-stat-val">$${fg(latest.total_net_gex)}</div>
+          <div class="trend-stat-delta ${deltaClass(prev?latest.total_net_gex-prev.total_net_gex:0)}">${prev?deltaStr(latest.total_net_gex-prev.total_net_gex,'g'):'—'}</div>
+        </div>
+      </div>
+    </div>`;
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+// ═══════════════════════════════════
+// ALERTS
+// ═══════════════════════════════════
+function renderAlerts(){
+  const el=document.getElementById('s-alerts');
+  if(!IX){el.innerHTML='<div class="no-data">No data loaded.</div>';return}
+  const dates=Object.keys(IX).sort();
+  const syms=getSyms();
+  const alerts=[];
+
+  for(let i=1;i<dates.length;i++){
+    const prev=IX[dates[i-1]],curr=IX[dates[i]];
+    syms.forEach(sym=>{
+      if(!prev[sym]||!curr[sym])return;
+      const pp=prev[sym].profile,cp=curr[sym].profile;
+      if(pp!==cp&&pp!=='unknown'){
+        let cls='fl-neu',emoji='🔄',meaning='';
+        if(cp==='negative'&&pp==='positive'){cls='fl-neg';emoji='⚠️';meaning='Gamma flipped <strong>NEGATIVE</strong> — vol expanding, momentum moves. Breakdowns follow through. Trade with the move.'}
+        else if(cp==='positive'&&pp==='negative'){cls='fl-pos';emoji='✅';meaning='Gamma flipped <strong>POSITIVE</strong> — vol dampening, mean reversion. Dealers stabilizing. Fade extremes.'}
+        else{cls='fl-neu';emoji='🟢';meaning='Gamma went <strong>NEUTRAL</strong> — mixed signals, expect choppy action. Reduce size.'}
+        alerts.push({date:dates[i],sym,from:pp,to:cp,cls,emoji,meaning});
+      }
+      const pk=prev[sym].king_node,ck=curr[sym].king_node;
+      if(pk&&ck&&pk!==ck){
+        const mv=ck-pk;
+        alerts.push({date:dates[i],sym,cls:'king-mv',emoji:'★',
+          meaning:`King Node migrated <strong>${fp(pk)} → ${fp(ck)}</strong> (${mv>0?'+':''}${mv.toFixed(1)} pts). New price magnet at <strong>${fp(ck)}</strong>.`,
+          from:fp(pk),to:fp(ck)});
+      }
+    });
+  }
+
+  if(!alerts.length){el.innerHTML='<div class="no-data">No gamma flips detected yet.<br>Keep running the fetcher daily — alerts appear when profiles change.</div>';return}
+
+  el.innerHTML='<div class="alerts-wrap">'+alerts.reverse().map(a=>`
+    <div class="alert ${a.cls}">
+      <div class="alert-top">
+        <span class="alert-sym">${a.emoji} ${a.sym}</span>
+        <span class="alert-date">${a.date}</span>
+      </div>
+      <div class="alert-body">${a.meaning}</div>
+    </div>
+  `).join('')+'</div>';
+}
+
+// ═══════════════════════════════════
+// COMPARE
+// ═══════════════════════════════════
+function renderCompare(){
+  const el=document.getElementById('s-compare');
+  if(!IX){el.innerHTML='<div class="no-data">No data.</div>';return}
+  const dates=Object.keys(IX).sort().reverse();
+  if(dates.length<2){el.innerHTML='<div class="no-data">Need 2+ days to compare.</div>';return}
+  const t=dates[0],y=dates[1];
+  const syms=getSyms();
+
+  let html='<div class="cmp-grid">';
+  syms.forEach(sym=>{
+    const tc=IX[t]?.[sym],yc=IX[y]?.[sym];
+    if(!tc||!yc)return;
+
+    function row(label,cv,pv,fmt){
+      const d=cv-pv;
+      const dc=deltaClass(d);
+      const ds=fmt==='p'?`${d>0?'+':''}${d.toFixed(1)}`:`${d>0?'+':''}${fg(d)}`;
+      return`<div class="cmp-row"><span class="cmp-lbl">${label}</span>
+        <div class="cmp-vals">
+          <span class="cmp-prev">${fmt==='p'?fp(pv):'$'+fg(pv)}</span>
+          <span class="cmp-arrow">→</span>
+          <span class="cmp-curr">${fmt==='p'?fp(cv):'$'+fg(cv)}</span>
+          <span class="cmp-delta ${dc}">${ds}</span>
+        </div></div>`;
+    }
+
+    html+=`<div class="cmp-card">
+      <div class="cmp-hdr"><span class="cmp-sym">${sym}</span><span class="cmp-dates">${y} → ${t}</span></div>
+      <div class="cmp-body">
+        ${row('Spot',tc.spot,yc.spot,'p')}
+        ${row('King Node',tc.king_node,yc.king_node,'p')}
+        ${row('Γ Wall',tc.gamma_wall,yc.gamma_wall,'p')}
+        ${row('Put Wall',tc.put_wall,yc.put_wall,'p')}
+        ${row('Net GEX',tc.total_net_gex,yc.total_net_gex,'g')}
+        <div class="cmp-row"><span class="cmp-lbl">Profile</span>
+          <div class="cmp-vals">
+            <span class="cmp-profile ${yc.profile}">${yc.profile}</span>
+            <span class="cmp-arrow">→</span>
+            <span class="cmp-profile ${tc.profile}">${tc.profile}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+// ═══════════════════════════════════
+// SNAPSHOTS
+// ═══════════════════════════════════
+function renderSnaps(){
+  const el=document.getElementById('s-snaps');
+  if(!IX){el.innerHTML='<div class="no-data">No history.</div>';return}
+  const dates=Object.keys(IX).sort().reverse();
+  el.innerHTML='<div class="snap-list">'+dates.map(d=>{
+    const day=IX[d];
+    const chips=Object.keys(day).map(sym=>{
+      const p=day[sym].profile||'unknown';
+      return`<span class="snap-chip ${p}">${sym} ${p==='positive'?'+γ':p==='negative'?'−γ':'○'} · ★${fp(day[sym].king_node||0)} · $${fg(day[sym].total_net_gex||0)}</span>`;
+    }).join('');
+    return`<div class="snap"><span class="snap-date">${d}</span><div class="snap-syms">${chips}</div></div>`;
+  }).join('')+'</div>';
+}
+
+// ═══════════════════════════════════
+// SAMPLE DATA
+// ═══════════════════════════════════
+function loadSample(){
+  const base={SPX:6800,SPY:680,QQQ:610,IWM:265};
+  IX={};
+  // Create realistic 8-day progression
+  const profiles={
+    SPX:['positive','positive','positive','neutral','negative','negative','positive','positive'],
+    SPY:['positive','positive','neutral','neutral','negative','negative','positive','positive'],
+    QQQ:['negative','negative','negative','neutral','positive','negative','negative','negative'],
+    IWM:['neutral','positive','positive','negative','negative','negative','neutral','positive'],
+  };
+  for(let i=7;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const ds=d.toISOString().slice(0,10);
+    IX[ds]={};
+    Object.keys(base).forEach(sym=>{
+      const idx=7-i;
+      const drift=(Math.sin(idx*.8)+Math.random()*.4-.2)*base[sym]*.003;
+      const spot=base[sym]+drift*(idx+1);
+      const profile=profiles[sym][idx];
+      const gexSign=profile==='positive'?1:profile==='negative'?-1:(Math.random()-.5)*2;
+      const kingOff=(Math.random()-.3)*base[sym]*.004;
+      IX[ds][sym]={
+        timestamp:d.toISOString(),spot,
+        total_net_gex:gexSign*(5+Math.random()*40)*1e6,
+        gamma_wall:spot+Math.abs(Math.random()*base[sym]*.004)+2,
+        put_wall:spot-Math.abs(Math.random()*base[sym]*.004)-2,
+        king_node:Math.round((spot+kingOff)/5)*5,
+        profile,bias:profile==='positive'?'range':profile==='negative'?'trend':'chop',
+        spot_zone:profile,summary:`${profile} gamma`
+      };
+    });
+  }
+  popSyms();render();
+}
+</script>
+</body>
+</html>
